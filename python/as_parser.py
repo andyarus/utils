@@ -89,13 +89,17 @@ def parse_autonomous_systems(AS):
 
 	return '\n'.join(resultSubnets)
 
-AS = parse_arguments()
-if not AS:
-	print tip_msg
-	sys.exit()
+def main():
+	AS = parse_arguments()
+	if not AS:
+		print tip_msg
+		sys.exit()
 
-result = parse_autonomous_systems(AS)
-print result
+	result = parse_autonomous_systems(AS)
+	print result
+
+if __name__ == "__main__":
+   main()
 
 
 
