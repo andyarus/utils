@@ -16,6 +16,7 @@ import sys
 import netaddr
 import subprocess
 import optparse
+import syslog
 
 skipIPv6 = True
 
@@ -28,48 +29,33 @@ skipIPv6 = True
 # 	'ripe'     # RIPE NCC (Réseaux IP Européens Network Coordination Centre)       http://www.ripe.net/    whois.ripe.net
 # ]
 
-tip_msg = 'specify --as=List of autonomous systems (one or more separated by comma without whitespaces or use \'\'). Example:'
-tip_msg += 'python ' + sys.argv[0] + ' --as=AS28890 or python ' + sys.argv[0] + ' --as=AS28890,AS12668'
+tipMsg = 'specify --as=List of autonomous systems (one or more separated by comma without whitespaces or use \'\'). Example:'
+tipMsg += 'python ' + sys.argv[0] + ' --as=AS28890 or python ' + sys.argv[0] + ' --as=AS28890,AS12668'
 
-def parse_arguments():
+def parseArguments():
 	parser = optparse.OptionParser()
 	parser.add_option("--as", dest="autonomousSystems",
 	                  help="List of autonomous systems (one or more separated by comma without whitespaces or use '')")
 	(options, args) = parser.parse_args()
 
 	if not options.autonomousSystems:
-		print tip_msg
+		print tipMsg
 		sys.exit()
 
-	AS = [] # AS - autonomous systems
+	autonomousSystems = []
 	AStmp = options.autonomousSystems.split(',')
 	for system in AStmp:
 		if not system.strip():
 			continue
 		if not system.strip().lower().startswith('as'):
 			system = 'AS' + system.strip()
-		AS.append(system)
+		autonomousSystems.append(system)
 
-	return AS
+	return autonomousSystems
 
-def parse_autonomous_systems(AS):
-	output = ''
-	for system in AS:
-		output += subprocess.check_output("whois -ra -- '-T route,route6 -i origin " + system + "' | grep route | awk '{print$2}'", shell=True)
-		# -r                     turn off recursive look-ups for contact information
-		# -a                     also search all the mirrored databases
-		# whois -ra -- '-T route,route6 -i origin AS28890' | grep route | awk '{print$2}	
-		output += '\n'
-
-	output = output.strip()
-	if not output:
-		return 'whois return empty answer'
-		#sys.exit()
-
+def mergeSubnets(messSubnets):
 	subnets = []
-	resultSubnets = []
-	subnetsTmp = output.split('\n')
-	for subnet in subnetsTmp:
+	for subnet in messSubnets:
 		subnet = subnet.strip()
 		if subnet and ('.' in subnet or ':' in subnet):
 			if ':' not in subnet: # IPv4
@@ -80,26 +66,39 @@ def parse_autonomous_systems(AS):
 	# merge networks
 	subnets = netaddr.cidr_merge(subnets)
 
+	resultSubnets = []
 	for subnet in subnets:
 		resultSubnets.append(str(subnet))
 
-	#print 'result subnets:'
-	#for subnet in resultSubnets:
-	#	print subnet
+	return resultSubnets
 
-	return '\n'.join(resultSubnets)
+def parseAutonomousSystems(autonomousSystems, rir):
+	output = ''
+	for system in autonomousSystems:
+		output += subprocess.check_output("whois -ra -- '-T route,route6 -i origin " + system + "' | grep route | awk '{print$2}'", shell=True)
+		# -r                     turn off recursive look-ups for contact information
+		# -a                     also search all the mirrored databases
+		# whois -ra -- '-T route,route6 -i origin AS28890' | grep route | awk '{print$2}	
+		output += '\n'
+
+	output = output.strip()
+	if not output:
+		syslog.syslog('whois return empty answer')
+		return ''
+
+	return mergeSubnets(output.split('\n'))
 
 def main():
-	AS = parse_arguments()
-	if not AS:
-		print tip_msg
+	autonomousSystems = parseArguments()
+	if not autonomousSystems:
+		print tipMsg
 		sys.exit()
 
-	result = parse_autonomous_systems(AS)
-	print result
+	result = parseAutonomousSystems(autonomousSystems, 'all')
+	print '\n'.join(result)
 
 if __name__ == "__main__":
-   main()
+	main()
 
 
 
