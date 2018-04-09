@@ -35,23 +35,10 @@ tipMsg += 'python ' + sys.argv[0] + ' --as=AS28890 or python ' + sys.argv[0] + '
 def parseArguments():
 	parser = optparse.OptionParser()
 	parser.add_option("--as", dest="autonomousSystems",
-	                  help="List of autonomous systems (one or more separated by comma without whitespaces or use '')")
+					help="List of autonomous systems (one or more separated by comma without whitespaces or use '')")
 	(options, args) = parser.parse_args()
 
-	if not options.autonomousSystems:
-		print tipMsg
-		sys.exit()
-
-	autonomousSystems = []
-	AStmp = options.autonomousSystems.split(',')
-	for system in AStmp:
-		if not system.strip():
-			continue
-		if not system.strip().lower().startswith('as'):
-			system = 'AS' + system.strip()
-		autonomousSystems.append(system)
-
-	return autonomousSystems
+	return options
 
 def mergeSubnets(messSubnets):
 	subnets = []
@@ -89,7 +76,22 @@ def parseAutonomousSystems(autonomousSystems, rir):
 	return mergeSubnets(output.split('\n'))
 
 def main():
-	autonomousSystems = parseArguments()
+	options = parseArguments()
+
+	if not options.autonomousSystems:
+		print tipMsg
+		return
+
+	autonomousSystems = []
+	asTmp = options.autonomousSystems.split(',')
+	for system in asTmp:
+		system = system.strip()
+		if not system:
+			continue
+		if not system.lower().startswith('as'):
+			system = 'AS' + system.strip()
+		autonomousSystems.append(system)
+
 	if not autonomousSystems:
 		print tipMsg
 		sys.exit()
